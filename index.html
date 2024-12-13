@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-2.26.2.min.js"></script>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #2c2c2c;
+      color: #f0f0f0;
+    }
+
+    h1 {
+      text-align: center;
+      padding: 20px;
+      background: linear-gradient(90deg, #4e54c8, #8f94fb);
+      color: white;
+      font-size: 2.5rem;
+      margin: 0;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    #fileInput {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 20px;
+      background: linear-gradient(90deg, #8f94fb, #4e54c8);
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #fileInput:hover {
+      background: linear-gradient(90deg, #4e54c8, #8f94fb);
+    }
+
+    #errorMessage {
+      text-align: center;
+      margin: 10px 0;
+      font-size: 1.2rem;
+      color: #ff4c4c;
+    }
+
+    /* Container to align charts */
+    .chart-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    /* Styling each chart */
+    .chart {
+      width: 90%;
+      max-width: 600px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 20px;
+      background: #383838;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s;
+      display: none; /* Initially hide the charts */
+    }
+
+    .chart.visible {
+      display: block; /* Show charts after file is uploaded */
+    }
+
+    .chart:hover {
+      transform: translateY(-10px);
+    }
+
+    /* Media query for smaller screens */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+
+      #fileInput {
+        font-size: 0.9rem;
+      }
+
+      .chart {
+        width: 100%;
+      }
+
+      .chart-container {
+        flex-direction: column;
+        padding: 10px;
+      }
+    }
+
+    /* Animation for fade-in */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .chart {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <h1>Interactive Book Dashboard</h1>
+  <input type="file" id="fileInput" accept="application/json">
+  <p id="errorMessage"></p>
+
+  <div class="chart-container">
+    <div id="ratingDistribution" class="chart"></div>
+    <div id="reviewsCount" class="chart"></div>
+    <div id="priceYearComparison" class="chart"></div>
+    <div id="genrePopularity" class="chart"></div>
+    <div id="costEffectiveness" class="chart"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const errorMessage = document.getElementById('errorMessage');
+
+    const charts = [
+      document.getElementById('ratingDistribution'),
+      document.getElementById('reviewsCount'),
+      document.getElementById('priceYearComparison'),
+      document.getElementById('genrePopularity'),
+      document.getElementById('costEffectiveness')
+    ];
+
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          generateDashboard(data);
+          errorMessage.textContent = '';
+          charts.forEach(chart => chart.classList.add('visible')); // Reveal charts
+        } catch (error) {
+          errorMessage.textContent = 'Invalid JSON file. Please upload a valid file.';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    function generateDashboard(data) {
+      if (!Array.isArray(data)) {
+        errorMessage.textContent = 'Invalid data structure. Please upload a JSON file containing an array of books.';
+        return;
+      }
+
+      // Aggregating data
+      const ratings = data.map(book => book.UserRating).filter(Boolean);
+      const reviews = data.map(book => book.Reviews).filter(Boolean);
+      const prices = data.map(book => book.Price).filter(Boolean);
+      const years = data.map(book => book.Year).filter(Boolean);
+      const genres = data.map(book => book.Genre).filter(Boolean);
+
+      // Count genres
+      const genreCounts = genres.reduce((acc, genre) => {
+        acc[genre] = (acc[genre] || 0) + 1;
+        return acc;
+      }, {});
+
+      // 1. User Ratings Distribution
+      Plotly.newPlot('ratingDistribution', [{
+        x: ratings,
+        type: 'histogram',
+        marker: { color: '#4caf50' }
+      }], {
+        title: 'User Ratings Distribution',
+        xaxis: { title: 'Ratings' },
+        yaxis: { title: 'Count' },
+        paper_bgcolor: '#383838',
+        plot_bgcolor: '#2c2c2c',
+        font: { color: '#f0f0f0' }
+      });
+
+      // 2. Reviews Count
+      Plotly.newPlot('reviewsCount', [{
+        x: data.map(book => book.Name),
+        y: reviews,
+        type: 'bar',
+        marker: { color: '#1e90ff' }
+      }], {
+        title: 'Total Reviews',
+        xaxis: { title: 'Books' },
+        yaxis: { title: 'Number of Reviews' },
+        paper_bgcolor: '#383838',
+        plot_bgcolor: '#2c2c2c',
+        font: { color: '#f0f0f0' }
+      });
+
+      // 3. Price vs. Year Comparison
+      Plotly.newPlot('priceYearComparison', [{
+        x: years,
+        y: prices,
+        mode: 'markers',
+        type: 'scatter',
+        marker: { size: 10, color: '#ffa500' }
+      }], {
+        title: 'Price vs. Year',
+        xaxis: { title: 'Year' },
+        yaxis: { title: 'Price (USD)' },
+        paper_bgcolor: '#383838',
+        plot_bgcolor: '#2c2c2c',
+        font: { color: '#f0f0f0' }
+      });
+
+      // 4. Genre Popularity
+      Plotly.newPlot('genrePopularity', [{
+        labels: Object.keys(genreCounts),
+        values: Object.values(genreCounts),
+        type: 'pie',
+        marker: { colors: ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A'] }
+      }], {
+        title: 'Genre Popularity',
+        paper_bgcolor: '#383838',
+        font: { color: '#f0f0f0' }
+      });
+
+      // 5. Cost Effectiveness (User Rating vs. Price)
+      Plotly.newPlot('costEffectiveness', [{
+        x: prices,
+        y: ratings,
+        mode: 'markers',
+        type: 'scatter',
+        marker: {
+          size: reviews.map(review => review / 1000),
+          color: '#800080'
+        }
+      }], {
+        title: 'Cost Effectiveness (User Rating vs. Price)',
+        xaxis: { title: 'Price (USD)' },
+        yaxis: { title: 'User Rating' }
+      });
+    }
+  </script>
+</body>
+</html>
